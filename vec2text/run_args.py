@@ -155,6 +155,16 @@ class ModelArguments:
             "help": "Whether to pass all zeros as embedding (and not use DPR at all)"
         },
     )
+    embedder_encrypt: bool = field(
+        default=False,
+        metadata={
+            "help": "Whether to encrypt vectors using the key in EMBEDDER_ENCRYPTION_KEY or a static default"
+        },
+    )
+    embedder_encrypt_approx_factor: float = field(
+        default=1.5,
+        metadata={"help": "Approximation factor to use when encrypting vectors"},
+    )
     use_frozen_embeddings_as_input: bool = field(
         default=False,
         metadata={
