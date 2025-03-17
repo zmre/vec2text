@@ -13,6 +13,10 @@ import vec2text
 disable_caching()
 print("** DISABLED HF DATASETS CACHING **")
 
+DATASET_CACHE_PATH = os.environ.get(
+    "VEC2TEXT_CACHE", os.path.expanduser("~/.cache/vec2text")
+)
+
 
 def create_arg_parser():
     parser = argparse.ArgumentParser(description="Argument Parser")
@@ -76,7 +80,8 @@ def md5_hash_kwargs(**kwargs) -> str:
 
 def main(args: argparse.ArgumentParser):
     out_file = os.path.join(
-        "/home/jxm3/research/retrieval/inversion/results_evaluation/logits",
+        DATASET_CACHE_PATH,
+        "/results_evaluation/logits",
         md5_hash_kwargs(**vars(args)) + ".json",
     )
     if os.path.exists(out_file):

@@ -11,8 +11,12 @@ from beir.retrieval import models
 from beir.retrieval.evaluation import EvaluateRetrieval
 from beir.retrieval.search.dense import DenseRetrievalExactSearch as DRES
 
-results_dir = "/home/jxm3/research/retrieval/inversion/results_defense"
-datasets_cache_dir = "/home/jxm3/research/retrieval/distractor_exp"
+DATASET_CACHE_PATH = os.environ.get(
+    "VEC2TEXT_CACHE", os.path.expanduser("~/.cache/vec2text")
+)
+
+results_dir = f"{DATASET_CACHE_PATH}/inversion/results_defense"
+datasets_cache_dir = f"{DATASET_CACHE_PATH}/retrieval/distractor_exp"
 all_datasets = [
     ####### public datasets #######
     "arguana",

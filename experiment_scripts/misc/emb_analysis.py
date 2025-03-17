@@ -3,9 +3,11 @@ emb(sentence), emb(reorder(sentence)), etc.
 
 Written: 2023-03-05
 """
-import sys
 
-sys.path.append("/home/jxm3/research/retrieval/inversion")
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 # jxm 3/5/23
 # stone st coffee

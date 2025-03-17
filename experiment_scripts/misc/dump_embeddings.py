@@ -5,8 +5,9 @@ Written: 2023-03-06
 
 import sys
 from typing import Tuple
+from pathlib import Path
 
-sys.path.append("/home/jxm3/research/retrieval/inversion")
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 import argparse
 import os

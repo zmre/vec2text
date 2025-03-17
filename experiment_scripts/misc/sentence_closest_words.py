@@ -2,9 +2,11 @@
 
 Written: 2023-03-05
 """
-import sys
 
-sys.path.append("/home/jxm3/research/retrieval/inversion")
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 import torch
 import tqdm

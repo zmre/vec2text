@@ -49,16 +49,14 @@ os.environ["TOKENIZERS_PARALLELISM"] = "False"
 device = torch.device(
     "cuda"
     if torch.cuda.is_available()
-    else "mps"
-    if torch.backends.mps.is_available()
-    else "cpu"
+    else "mps" if torch.backends.mps.is_available() else "cpu"
 )
 logger = logging.getLogger(__name__)
 
 # We maintain our own cache because huggingface datasets caching
 # doesn't always work properly.
 DATASET_CACHE_PATH = os.environ.get(
-    "VEC2TEXT_CACHE", os.path.expanduser("~/.cache/inversion")
+    "VEC2TEXT_CACHE", os.path.expanduser("~/.cache/vec2text")
 )
 
 
@@ -398,10 +396,12 @@ class Experiment(abc.ABC):
                     "text",
                     self.model_args.max_seq_length,
                     padding=False,
-                    prefix="search_document"
-                    if self.model_args.embedder_model_name
-                    == "nomic-ai/nomic-embed-text-v1"
-                    else None,
+                    prefix=(
+                        "search_document"
+                        if self.model_args.embedder_model_name
+                        == "nomic-ai/nomic-embed-text-v1"
+                        else None
+                    ),
                 ),
                 batched=True,
                 num_proc=get_num_proc(),
@@ -419,7 +419,7 @@ class Experiment(abc.ABC):
             print(
                 f"[Precomputing embeddings with batch size: {self.training_args.per_device_train_batch_size}]"
             )
-            assert torch.cuda.is_available()
+            # assert torch.cuda.is_available()
             model = model.to(device)
 
             new_tokenized_datasets = {}
@@ -492,7 +492,7 @@ class Experiment(abc.ABC):
         val_datasets_dict = val_datasets_dict.filter(lambda ex: ex["length"] > 1)
 
         if self.model_args.use_frozen_embeddings_as_input:
-            assert torch.cuda.is_available()
+            # assert torch.cuda.is_available()
             model = model.to(device)
 
             new_tokenized_datasets = {}

@@ -9,6 +9,10 @@ import torch
 from vec2text.run_args import DataArguments
 from vec2text.utils import dataset_map_multi_worker, get_num_proc
 
+DATASET_CACHE_PATH = os.environ.get(
+    "VEC2TEXT_CACHE", os.path.expanduser("~/.cache/vec2text")
+)
+
 
 def retain_dataset_columns(
     d: datasets.Dataset, allowed_columns: List[str]
@@ -150,7 +154,7 @@ def load_beir_corpus(name: str) -> List[str]:
     from beir.datasets.data_loader import GenericDataLoader
 
     #### Download scifact.zip dataset and unzip the dataset
-    beir_datasets_cache_dir = "/home/jxm3/research/retrieval/distractor_exp"
+    beir_datasets_cache_dir = f"{DATASET_CACHE_PATH}/retrieval/distractor_exp"
 
     url = "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/{}.zip".format(
         name

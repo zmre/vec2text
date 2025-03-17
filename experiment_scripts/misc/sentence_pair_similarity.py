@@ -2,9 +2,11 @@
 
 Written: 2023-03-02
 """
-import sys
 
-sys.path.append("/home/jxm3/research/retrieval/inversion")
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 import torch
 from models import InversionModel, load_embedder_and_tokenizer, load_encoder_decoder
