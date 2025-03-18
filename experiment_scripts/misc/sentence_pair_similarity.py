@@ -10,8 +10,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 import torch
 from models import InversionModel, load_embedder_and_tokenizer, load_encoder_decoder
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+from vec2text.models.model_utils import device
 
 
 def main():

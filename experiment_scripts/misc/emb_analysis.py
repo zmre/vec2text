@@ -27,10 +27,10 @@ from data_helpers import NQ_DEV, load_dpr_corpus
 from models import InversionModel, load_embedder_and_tokenizer, load_encoder_decoder
 from tokenize_data import tokenize_function
 from utils import emb, embed_all_tokens
+from vec2text.models.model_utils import device
 
 num_workers = len(os.sched_getaffinity(0))
 max_seq_length = 128
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def reorder_words_except_padding(
