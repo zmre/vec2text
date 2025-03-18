@@ -10,7 +10,11 @@ from vec2text.models.model_utils import device
 SUPPORTED_MODELS = ["text-embedding-ada-002", "gtr-base"]
 
 
-def load_pretrained_corrector(embedder: str) -> vec2text.trainers.Corrector:
+def load_pretrained_corrector(
+    embedder: str,
+    embedder_encrypt: bool = False,
+    embedder_encrypt_approx_factor: float = 1.5,
+) -> vec2text.trainers.Corrector:
     """Gets the Corrector object for the given embedder.
 
     For now, we just support inverting OpenAI Ada 002 and gtr-base embeddings; we plan to
@@ -22,14 +26,18 @@ def load_pretrained_corrector(embedder: str) -> vec2text.trainers.Corrector:
 
     if embedder == "text-embedding-ada-002":
         inversion_model = vec2text.models.InversionModel.from_pretrained(
-            "jxm/vec2text__openai_ada002__msmarco__msl128__hypothesizer"
+            "jxm/vec2text__openai_ada002__msmarco__msl128__hypothesizer",
+            embedder_encrypt=embedder_encrypt,
+            embedder_encrypt_approx_factor=embedder_encrypt_approx_factor,
         ).to(device)
         model = vec2text.models.CorrectorEncoderModel.from_pretrained(
             "jxm/vec2text__openai_ada002__msmarco__msl128__corrector"
         ).to(device)
     elif embedder == "gtr-base":
         inversion_model = vec2text.models.InversionModel.from_pretrained(
-            "jxm/gtr__nq__32"
+            "jxm/gtr__nq__32",
+            embedder_encrypt=embedder_encrypt,
+            embedder_encrypt_approx_factor=embedder_encrypt_approx_factor,
         ).to(device)
         model = vec2text.models.CorrectorEncoderModel.from_pretrained(
             "jxm/gtr__nq__32__correct"

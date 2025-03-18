@@ -107,10 +107,13 @@ def stack_pool(
 def load_embedder_and_tokenizer(name: str, torch_dtype: str, **kwargs):
     # TODO make abstract/argparse for it etc.
     # name = "gpt2" #### <--- TEMP. For debugging. Delete!
-    model_kwargs = {
+    model_kwargs_defaults = {
         "low_cpu_mem_usage": True,  # Not compatible with DeepSpeed
         "output_hidden_states": False,
+        "embedder_encrypt": False,
+        "embedder_encrypt_approx_factor": 1.5,
     }
+    model_kwargs = {**model_kwargs_defaults, **kwargs}
 
     if name == "dpr":
         # model = SentenceTransformer("sentence-transformers/facebook-dpr-question_encoder-multiset-base")
@@ -172,11 +175,9 @@ def load_embedder_and_tokenizer(name: str, torch_dtype: str, **kwargs):
         model = transformers.AutoModel.from_pretrained(
             "thenlper/gte-base", **model_kwargs
         )
-        tokenizer = transformers.AutoTokenizer.from_pretrained(
-            "thenlper/gte-base"
-        )
+        tokenizer = transformers.AutoTokenizer.from_pretrained("thenlper/gte-base")
     elif name == "gte_base_st":
-        model = SentenceTransformer('thenlper/gte-base')
+        model = SentenceTransformer("thenlper/gte-base")
         tokenizer = model.tokenizer
     elif name == "ance_tele":
         model = transformers.AutoModel.from_pretrained(
