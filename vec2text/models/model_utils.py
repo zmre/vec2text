@@ -48,8 +48,8 @@ def get_device():
     """
     if torch.cuda.is_available():
         dev = "cuda"
-    elif torch.backends.mps.is_available():
-        dev = "mps"
+    # elif torch.backends.mps.is_available():
+    #     dev = "mps"
     else:
         dev = "cpu"
     device = torch.device(dev)
@@ -110,8 +110,6 @@ def load_embedder_and_tokenizer(name: str, torch_dtype: str, **kwargs):
     model_kwargs_defaults = {
         "low_cpu_mem_usage": True,  # Not compatible with DeepSpeed
         "output_hidden_states": False,
-        "embedder_encrypt": False,
-        "embedder_encrypt_approx_factor": 1.5,
     }
     model_kwargs = {**model_kwargs_defaults, **kwargs}
 

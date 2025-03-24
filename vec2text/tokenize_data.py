@@ -2,6 +2,8 @@ from typing import Callable, Dict
 
 import torch
 import transformers
+from vec2text.models.model_utils import device
+
 
 from vec2text.models import InversionModel
 
@@ -131,7 +133,7 @@ def embed_dataset_batch(model: InversionModel, batch: Dict) -> Dict:
         truncation=True,
         padding="max_length",
         return_tensors="pt",
-    ).to(next(model.parameters()).device)
+    ).to(device)
 
     with torch.no_grad():
         batch["frozen_embeddings"] = model.call_embedding_model(**emb_input_ids)

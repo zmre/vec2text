@@ -10,6 +10,7 @@ from sentence_transformers import SentenceTransformer
 from vec2text.models import InversionModel
 from vec2text.models.config import InversionConfig
 from vec2text.models.model_utils import load_embedder_and_tokenizer, load_tokenizer
+from vec2text.models.model_utils import device
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +138,7 @@ class InversionModelDecoderOnly(InversionModel):
                 f"unknown embedding transformation strategy {self.embedding_transform_strategy}"
             )
         attention_mask = torch.ones(
-            (embeddings.shape[0], embeddings.shape[1]), device=embeddings.device
+            (embeddings.shape[0], embeddings.shape[1]), device=device
         )
         return embeddings, attention_mask
 

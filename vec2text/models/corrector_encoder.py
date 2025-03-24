@@ -6,6 +6,7 @@ import torch.nn as nn
 import transformers
 
 from vec2text.models.config import InversionConfig
+from vec2text.models.model_utils import device
 
 
 class CorrectorEncoderModel(transformers.PreTrainedModel):
@@ -40,28 +41,40 @@ class CorrectorEncoderModel(transformers.PreTrainedModel):
         self.num_repeat_tokens = num_repeat_tokens
         self.encoder_hidden_dim = self.encoder_decoder.config.hidden_size
         self.embedding_transform_1 = nn.Sequential(
-            nn.Linear(self.embedder_dim, bottleneck_dim),
+            nn.Linear(self.embedder_dim, bottleneck_dim, device=device),
             nn.Dropout(
                 self.encoder_decoder.config.dropout_rate if self.use_ff_dropout else 0.0
             ),
             nn.GELU(),
-            nn.Linear(bottleneck_dim, self.encoder_hidden_dim * num_repeat_tokens),
+            nn.Linear(
+                bottleneck_dim,
+                self.encoder_hidden_dim * num_repeat_tokens,
+                device=device,
+            ),
         )
         self.embedding_transform_2 = nn.Sequential(
-            nn.Linear(self.embedder_dim, bottleneck_dim),
+            nn.Linear(self.embedder_dim, bottleneck_dim, device=device),
             nn.Dropout(
                 self.encoder_decoder.config.dropout_rate if self.use_ff_dropout else 0.0
             ),
             nn.GELU(),
-            nn.Linear(bottleneck_dim, self.encoder_hidden_dim * num_repeat_tokens),
+            nn.Linear(
+                bottleneck_dim,
+                self.encoder_hidden_dim * num_repeat_tokens,
+                device=device,
+            ),
         )
         self.embedding_transform_3 = nn.Sequential(
-            nn.Linear(self.embedder_dim, bottleneck_dim),
+            nn.Linear(self.embedder_dim, bottleneck_dim, device=device),
             nn.Dropout(
                 self.encoder_decoder.config.dropout_rate if self.use_ff_dropout else 0.0
             ),
             nn.GELU(),
-            nn.Linear(bottleneck_dim, self.encoder_hidden_dim * num_repeat_tokens),
+            nn.Linear(
+                bottleneck_dim,
+                self.encoder_hidden_dim * num_repeat_tokens,
+                device=device,
+            ),
         )
         self.ignore_hypothesis_embedding = ignore_hypothesis_embedding
         # TODO argparse; default to 0?
@@ -85,10 +98,10 @@ class CorrectorEncoderModel(transformers.PreTrainedModel):
 
         if (self.training) and (self.training_embedding_noise_level > 0):
             embedding += self.training_embedding_noise_level * torch.randn(
-                embedding.shape, device=embedding.device
+                embedding.shape, device=device
             )
             hypothesis_embedding += self.training_embedding_noise_level * torch.randn(
-                hypothesis_embedding.shape, device=hypothesis_embedding.device
+                hypothesis_embedding.shape, device=device
             )
 
         if self.ignore_hypothesis_embedding:
@@ -114,7 +127,7 @@ class CorrectorEncoderModel(transformers.PreTrainedModel):
         inputs_embeds = self.encoder_decoder.encoder.embed_tokens(hypothesis_input_ids)
         #
         ones = torch.ones(
-            (batch_size, 1), dtype=torch.long, device=hypothesis_input_ids.device
+            (batch_size, 1), dtype=torch.long, device=device
         )
         # TODO: pad_token_id or eos_token_id? Or does it not matter?
         sep_token = ones * self.encoder_decoder.config.eos_token_id
@@ -156,10 +169,10 @@ class CorrectorEncoderModel(transformers.PreTrainedModel):
             ).shape[1]
 
         inputs_embeds, attention_mask = self.get_encoder_embedding(
-            embedding=inputs["frozen_embeddings"],
+            embedding=inputs["frozen_embeddings"].to(device),
             hypothesis_input_ids=inputs["hypothesis_input_ids"],
             hypothesis_attention_mask=inputs["hypothesis_attention_mask"],
-            hypothesis_embedding=inputs["hypothesis_embedding"],
+            hypothesis_embedding=inputs["hypothesis_embedding"].to(device),
         )
 
         if "decoder_input_ids" in inputs:

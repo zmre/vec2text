@@ -11,6 +11,8 @@ import torch
 import tqdm
 import transformers
 from tenacity import retry, stop_after_attempt, wait_fixed
+from vec2text.models.model_utils import device
+
 
 datasets.disable_caching()
 
@@ -28,7 +30,7 @@ def emb(
 def get_world_size() -> int:
     try:
         return torch.distributed.get_world_size()
-    except (RuntimeError, ValueError):
+    except (RuntimeError, ValueError, AttributeError):
         return 1
 
 
@@ -56,7 +58,6 @@ def embed_all_tokens(model: torch.nn.Module, tokenizer: transformers.AutoTokeniz
     SEP = (tokenizer.sep_token_id) or (tokenizer.eos_token_id)
     assert SEP is not None
     #
-    device = next(model.parameters()).device
     pbar = tqdm.tqdm(
         desc="generating token embeddings", colour="#008080", total=V, leave=False
     )
@@ -129,7 +130,7 @@ def dataset_map_multi_worker(
         rank = torch.distributed.get_rank()
         world_size = torch.distributed.get_world_size()
         kwargs["num_proc"] = kwargs.get("num_proc", get_num_proc())
-    except (RuntimeError, ValueError):
+    except (RuntimeError, ValueError, AttributeError):
         # In non-distributed mode, just run regular map()
         kwargs["num_proc"] = kwargs.get("num_proc", get_num_proc())
         return dataset.map(map_fn, *args, **kwargs)
@@ -270,7 +271,7 @@ def embed_api(
     else:
         raise ValueError(f"unsupported api name {api_name}")
 
-    return torch.tensor(embeddings, device=input_ids.device, dtype=torch.float32)
+    return torch.tensor(embeddings, device=device, dtype=torch.float32)
 
 
 class MockEmbedder:
@@ -285,7 +286,7 @@ class MockEmbedder:
         return torch.zeros(
             (input_ids.shape[0], input_ids.shape[1], self.embedder_dim),
             dtype=torch.float32,
-            device=input_ids.device,
+            device=device,
         )
 
     def __call__(
@@ -294,5 +295,5 @@ class MockEmbedder:
         return torch.zeros(
             (input_ids.shape[0], input_ids.shape[1], self.embedder_dim),
             dtype=torch.float32,
-            device=input_ids.device,
+            device=device,
         )

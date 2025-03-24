@@ -16,6 +16,8 @@ import tqdm
 import transformers
 
 import vec2text
+from vec2text.models.model_utils import device
+
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +112,7 @@ class BaseTrainer(transformers.Trainer):
             max_length=max_length,
             padding="max_length",
         )
-        inputs = inputs.to(self.args.device)
+        inputs = inputs.to(device)
         gen_kwargs = copy.copy(self.gen_kwargs)
         gen_kwargs["min_length"] = 1
         gen_kwargs["max_length"] = max_length
@@ -172,7 +174,7 @@ class BaseTrainer(transformers.Trainer):
             tqdm.tqdm(dataloader, desc="generating from val", leave=False)
         ):
             # https://huggingface.co/docs/transformers/v4.26.1/en/main_classes/text_generation#transformers.GenerationMixin.generate
-            inputs_cuda = {k: v.to(self.args.device) for k, v in inputs.items()}
+            inputs_cuda = {k: v.to(device) for k, v in inputs.items()}
             max_length = self.model.config.max_seq_length
             gen_kwargs["max_length"] = max_length
             with torch.no_grad():
@@ -185,7 +187,7 @@ class BaseTrainer(transformers.Trainer):
                     torch.ones(
                         (generated_text.shape[0], max_length - generated_text.shape[1]),
                         dtype=torch.long,
-                        device=generated_text.device,
+                        device=device,
                     )
                     * self.pad_token_id
                 )
@@ -199,7 +201,7 @@ class BaseTrainer(transformers.Trainer):
                     torch.ones(
                         (true_input_ids.shape[0], max_length - true_input_ids.shape[1]),
                         dtype=torch.long,
-                        device=true_input_ids.device,
+                        device=device,
                     )
                     * self.pad_token_id
                 )
@@ -405,9 +407,9 @@ class BaseTrainer(transformers.Trainer):
         print("[true]", decoded_labels[2])
 
         # Compute sims of eval data using embedder.
-        preds_sample = torch.tensor(preds_sample_list, device=self.args.device)[:128]
+        preds_sample = torch.tensor(preds_sample_list, device=device)[:128]
         preds_sample_labels = torch.tensor(
-            preds_sample_labels_list, device=self.args.device
+            preds_sample_labels_list, device=device
         )[:128]
 
         # Log num tokens.
@@ -439,7 +441,7 @@ class BaseTrainer(transformers.Trainer):
                 torch.ones(
                     (len(preds_sample), 1),
                     dtype=torch.long,
-                    device=self.args.device,
+                    device=device,
                 )
                 * eos_token_id
             )
@@ -454,7 +456,7 @@ class BaseTrainer(transformers.Trainer):
                     padding=True,
                     truncation=False,
                     return_tensors="pt",
-                )["input_ids"].to(preds_sample.device)
+                )["input_ids"].to(device)
                 preds_sample_retokenized = preds_sample_retokenized[
                     : self.args.per_device_eval_batch_size, :
                 ]
@@ -462,19 +464,19 @@ class BaseTrainer(transformers.Trainer):
                 preds_emb = self.call_embedding_model(
                     input_ids=preds_sample_retokenized,
                     attention_mask=(preds_sample_retokenized != pad_token_id).to(
-                        self.args.device
+                        device
                     ),
                 )
                 preds_sample_labels_retokenized = self.embedder_tokenizer(
                     decoded_labels, padding=True, truncation=False, return_tensors="pt"
-                )["input_ids"].to(preds_sample.device)
+                )["input_ids"].to(device)
                 preds_sample_labels_retokenized = preds_sample_labels_retokenized[
                     : self.args.per_device_eval_batch_size, :
                 ]
                 labels_emb = self.call_embedding_model(
                     input_ids=preds_sample_labels_retokenized,
                     attention_mask=(preds_sample_labels_retokenized != pad_token_id).to(
-                        self.args.device
+                        device
                     ),
                 )
                 emb_cos_sims = torch.nn.CosineSimilarity(dim=1)(preds_emb, labels_emb)

@@ -16,14 +16,8 @@ from vec2text import experiments
 from vec2text.models.config import InversionConfig
 from vec2text.run_args import DataArguments, ModelArguments, TrainingArguments
 from vec2text import run_args as run_args
+from vec2text.models.model_utils import device
 
-device = torch.device(
-    "cuda"
-    if torch.cuda.is_available()
-    else "mps"
-    if torch.backends.mps.is_available()
-    else "cpu"
-)
 transformers.logging.set_verbosity_error()
 
 #############################################################################
@@ -50,10 +44,7 @@ def load_experiment_and_trainer(
         checkpoint = checkpoint_folder
     print("[analyze_utils] Loading model from checkpoint:", checkpoint)
 
-
-    cwd = os.path.dirname(
-        os.path.abspath(__file__)
-    )
+    cwd = os.path.dirname(os.path.abspath(__file__))
     print(f"[analyze_utils] adding cwd to path: {cwd}")
     sys.path.append(cwd)
 
@@ -66,21 +57,24 @@ def load_experiment_and_trainer(
     else:
         print("[analyze_utils] loading args from checkpoint", checkpoint)
         try:
-            print("[analyze_utils] loading data_args from", os.path.join(checkpoint, os.pardir, "data_args.bin"))
+            print(
+                "[analyze_utils] loading data_args from",
+                os.path.join(checkpoint, os.pardir, "data_args.bin"),
+            )
             data_args = torch.load(os.path.join(checkpoint, os.pardir, "data_args.bin"))
-        except (FileNotFoundError):
+        except FileNotFoundError:
             data_args = torch.load(os.path.join(checkpoint, "data_args.bin"))
         try:
             model_args = torch.load(
                 os.path.join(checkpoint, os.pardir, "model_args.bin")
             )
-        except (FileNotFoundError):
+        except FileNotFoundError:
             model_args = torch.load(os.path.join(checkpoint, "model_args.bin"))
         try:
             training_args = torch.load(
                 os.path.join(checkpoint, os.pardir, "training_args.bin")
             )
-        except (FileNotFoundError):
+        except FileNotFoundError:
             training_args = torch.load(os.path.join(checkpoint, "training_args.bin"))
 
     training_args.dataloader_num_workers = 0  # no multiprocessing :)
@@ -88,6 +82,7 @@ def load_experiment_and_trainer(
     training_args.report_to = []
     training_args.mock_embedder = False
     training_args.no_cuda = not torch.cuda.is_available()
+    training_args.to(device)
 
     if max_seq_length is not None:
         print(
@@ -115,7 +110,7 @@ def load_experiment_and_trainer(
         data_args.dataset_name = "nq"
         print("set dataset to nq")
 
-    if not torch.cuda.is_available():
+    if device == "cpu":
         print("[analyze_utils] No GPU available, loading model on CPU")
         training_args.use_cpu = True
         training_args._n_gpu = 0
@@ -123,9 +118,9 @@ def load_experiment_and_trainer(
         training_args.distributed_state = PartialState()
         training_args.deepspeed_plugin = None  # For backwards compatibility
         training_args.bf16 = 0  # no bf16 in case no support from GPU
-    
+
     # Need to delete this cached property so that it's properly recomputed.
-    if '__cached__setup_devices' in training_args.__dict__:
+    if "__cached__setup_devices" in training_args.__dict__:
         del training_args.__dict__["__cached__setup_devices"]
 
     experiment = experiments.experiment_from_args(model_args, data_args, training_args)
@@ -179,7 +174,9 @@ def load_experiment_and_trainer_from_pretrained(name: str, use_less_data: int = 
 
     data_args.use_less_data = use_less_data
     #######################################################################
-    training_args._n_gpu = 1 if torch.cuda.is_available() else 0  # Don't load in DDP
+    training_args._n_gpu = (
+        1 if torch.cuda.is_available() or torch.mps.is_available() else 0
+    )  # Don't load in DDP
     training_args.bf16 = 0  # no bf16 in case no support from GPU
     training_args.local_rank = -1  # Don't load in DDP
     training_args.distributed_state = PartialState()
@@ -194,7 +191,7 @@ def load_experiment_and_trainer_from_pretrained(name: str, use_less_data: int = 
     experiment = experiments.experiment_from_args(model_args, data_args, training_args)
     trainer = experiment.load_trainer()
     trainer.model = trainer.model.__class__.from_pretrained(name)
-    trainer.model.to(training_args.device)
+    trainer.model.to(device)
     return experiment, trainer
 
 
@@ -241,7 +238,7 @@ def load_gpt_fewshot_baseline_trainer(
         prev_trainer.model.encoder_decoder.config.decoder_start_token_id
     )
     trainer.tokenizer = prev_trainer.tokenizer
-    trainer.device = training_args.device
+    trainer.device = device
     trainer.embedder = prev_trainer.model.embedder
     trainer.args.use_wandb = False
     trainer.call_embedding_model = prev_trainer.call_embedding_model
@@ -289,7 +286,7 @@ def load_jailbreak_baseline_trainer(
         prev_trainer.model.encoder_decoder.config.decoder_start_token_id
     )
     trainer.tokenizer = prev_trainer.tokenizer
-    trainer.device = training_args.device
+    trainer.device = device
     trainer.embedder = prev_trainer.model.embedder
     trainer.args.use_wandb = False
     trainer.call_embedding_model = prev_trainer.call_embedding_model
@@ -340,7 +337,7 @@ def load_seq2seq_baseline_trainer(
         prev_trainer.model.encoder_decoder.config.decoder_start_token_id
     )
     trainer.tokenizer = prev_trainer.tokenizer
-    trainer.device = training_args.device
+    trainer.device = device
     trainer.embedder = prev_trainer.model.embedder
     trainer.args.use_wandb = False
     trainer.call_embedding_model = prev_trainer.call_embedding_model

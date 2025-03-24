@@ -325,7 +325,7 @@ class TrainingArguments(transformers.TrainingArguments):
     remove_unused_columns: bool = False
 
     # Do evaluation and logging on certain num steps.
-    evaluation_strategy: str = "steps"
+    eval_strategy: str = "steps"
     logging_strategy: str = "steps"
     save_strategy: str = "steps"
 
@@ -381,7 +381,15 @@ class TrainingArguments(transformers.TrainingArguments):
             ["wandb"] if (self.use_wandb and (self.local_rank <= 0)) else []
         )
         self.dataloader_pin_memory = True
-        num_workers = torch.cuda.device_count()
+        num_workers = (
+            torch.cuda.device_count()
+            if torch.cuda.is_available()
+            else (
+                torch.mps.device_count()
+                if torch.mps.is_available()
+                else torch.cpu.device_count()
+            )
+        )
         os.environ["RAYON_RS_NUM_CPUS"] = str(
             num_workers
         )  # Sets threads for hf tokenizers

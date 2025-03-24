@@ -34,6 +34,8 @@ from vec2text.tokenize_data import (
     tokenize_function_llama_chat,
 )
 from vec2text.utils import MockEmbedder, dataset_map_multi_worker, get_num_proc
+from vec2text.models.model_utils import device
+
 
 # Allow W&B to start slowly.
 os.environ["WANDB__SERVICE_WAIT"] = "300"
@@ -46,11 +48,6 @@ os.environ["_WANDB_STARTUP_DEBUG"] = "true"
 os.environ["TOKENIZERS_PARALLELISM"] = "False"
 # os.environ["TOKENIZERS_PARALLELISM"] = "True"
 
-device = torch.device(
-    "cuda"
-    if torch.cuda.is_available()
-    else "mps" if torch.backends.mps.is_available() else "cpu"
-)
 logger = logging.getLogger(__name__)
 
 # We maintain our own cache because huggingface datasets caching

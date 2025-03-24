@@ -17,6 +17,7 @@ from vec2text.models.model_utils import (
     load_tokenizer,
     mean_pool,
 )
+from vec2text.models.model_utils import device
 from vec2text.utils import embed_api
 import ironcore_alloy as alloy
 import asyncio
@@ -45,8 +46,8 @@ class InversionModel(transformers.PreTrainedModel):
     embedder_dim: int  # Hidden dimension of embedding model
     embedder_no_grad: bool  # Disable gradients for embedding model
     embedder_fake_with_zeros: bool  # Whether to just provide zeros as input for encoder-decoder (unconditional)
-    embedder_encrypt: bool  # whether to encrypt the embeddings; expects key in env EMBEDDER_ENCRYPTION_KEY
-    embedder_encrypt_approx_factor: float  # approximation factor to use when encrypting
+    # embedder_encrypt: bool  # whether to encrypt the embeddings; expects key in env EMBEDDER_ENCRYPTION_KEY
+    # embedder_encrypt_approx_factor: float  # approximation factor to use when encrypting
     embedding_transform_strategy: (
         str  # Way to transform bottleneck embedding into input for encoder-decoder
     )
@@ -65,8 +66,8 @@ class InversionModel(transformers.PreTrainedModel):
         encoder_dropout_disabled = config.encoder_dropout_disabled
         decoder_dropout_disabled = config.decoder_dropout_disabled
         embeddings_from_layer_n = config.embeddings_from_layer_n
-        embedder_encrypt = config.embedder_encrypt
-        embedder_encrypt_approx_factor = config.embedder_encrypt_approx_factor
+        # embedder_encrypt = config.embedder_encrypt
+        # embedder_encrypt_approx_factor = config.embedder_encrypt_approx_factor
 
         encoder_decoder = load_encoder_decoder(
             model_name=config.model_name_or_path,
@@ -137,8 +138,8 @@ class InversionModel(transformers.PreTrainedModel):
         self.embedder_model_api = embedder_model_api
         # self.freeze(freeze_strategy=config.freeze_strategy)
         self.embedder_fake_with_zeros = embedder_fake_with_zeros
-        self.embedder_encrypt = embedder_encrypt
-        self.embedder_encrypt_approx_factor = embedder_encrypt_approx_factor
+        # self.embedder_encrypt = embedder_encrypt
+        # self.embedder_encrypt_approx_factor = embedder_encrypt_approx_factor
 
         self.embedding_transform_strategy = "repeat"  # "none" # "repeat"
         self.embeddings_from_layer_n = embeddings_from_layer_n
@@ -171,7 +172,8 @@ class InversionModel(transformers.PreTrainedModel):
 
     @property
     def embedder_device(self) -> torch.device:
-        return next(self.embedder.parameters()).device
+        return device
+        # return next(self.embedder.parameters()).device
 
     def _process_embedder_output(
         self,
@@ -209,7 +211,7 @@ class InversionModel(transformers.PreTrainedModel):
             return torch.zeros(
                 (batch_size, self.embedder_dim),
                 dtype=torch.float32,
-                device=self.embedder_device,
+                device=device,
             )
         elif self.embedder_model_api:
             embeddings = embed_api(
@@ -228,52 +230,53 @@ class InversionModel(transformers.PreTrainedModel):
             model_output = embedder(input_ids=input_ids, attention_mask=attention_mask)
             embeddings = self._process_embedder_output(model_output, attention_mask)
 
-        if self.embedder_encrypt:
-            # Note: in practice this must be 32 cryptographically-secure bytes, but for this purpose, it doesn't
-            # matter if it's a fixed value that's insecure in most cases
-            default_key_str = base64.b64encode(b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-            key_str = os.environ.get("EMBEDDER_ENCRYPTION_KEY", default_key_str)
-            key_bytes = base64.b64decode(key_str)
-            # TODO: get secret_path environment, too?
-            vector_secrets = {
-                "secret_path": alloy.VectorSecret(
-                    self.embedder_encrypt_approx_factor,
-                    alloy.RotatableSecret(
-                        alloy.StandaloneSecret(1, alloy.Secret(key_bytes)), None
-                    ),
-                )
-            }
-            standard_secrets = alloy.StandardSecrets(
-                1, [alloy.StandaloneSecret(1, alloy.Secret(key_bytes))]
-            )
-            deterministic_secrets = {}
-            tenantid = alloy.AlloyMetadata.new_simple(
-                ""
-            )  # not needed in our case so we'll leave it blank
-            config = alloy.StandaloneConfiguration(
-                standard_secrets, deterministic_secrets, vector_secrets
-            )  # sdk gets setup with required master secrets
-            sdk = alloy.Standalone(config)
-
-            # first we'll encrypt the vectors
-            for embedding in embeddings:
-                plaintextvector = alloy.PlaintextVector(
-                    plaintext_vector=embedding.tolist(),
-                    secret_path="secret_path",
-                    derivation_path="",
-                )  # each index and set of vectors encrypted with different derived keys
-                # first we encrypt the dense vector
-                encryptedvector = asyncio.run(
-                    sdk.vector().encrypt(plaintextvector, tenantid)
-                )
-                # print(encrypted)
-                # update those values in place
-                embedding = torch.tensor(encryptedvector.encrypted_vector)
+        # if self.embedder_encrypt:
+        #     # Note: in practice this must be 32 cryptographically-secure bytes, but for this purpose, it doesn't
+        #     # matter if it's a fixed value that's insecure in most cases
+        #     default_key_str = base64.b64encode(b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        #     key_str = os.environ.get("EMBEDDER_ENCRYPTION_KEY", default_key_str)
+        #     key_bytes = base64.b64decode(key_str)
+        #     # TODO: get secret_path environment, too?
+        #     vector_secrets = {
+        #         "secret_path": alloy.VectorSecret(
+        #             self.embedder_encrypt_approx_factor,
+        #             alloy.RotatableSecret(
+        #                 alloy.StandaloneSecret(1, alloy.Secret(key_bytes)), None
+        #             ),
+        #         )
+        #     }
+        #     standard_secrets = alloy.StandardSecrets(
+        #         1, [alloy.StandaloneSecret(1, alloy.Secret(key_bytes))]
+        #     )
+        #     deterministic_secrets = {}
+        #     tenantid = alloy.AlloyMetadata.new_simple(
+        #         ""
+        #     )  # not needed in our case so we'll leave it blank
+        #     config = alloy.StandaloneConfiguration(
+        #         standard_secrets, deterministic_secrets, vector_secrets
+        #     )  # sdk gets setup with required master secrets
+        #     sdk = alloy.Standalone(config)
+        #
+        #     # first we'll encrypt the vectors
+        #     for embedding in embeddings:
+        #         plaintextvector = alloy.PlaintextVector(
+        #             plaintext_vector=embedding.tolist(),
+        #             secret_path="secret_path",
+        #             derivation_path="",
+        #         )  # each index and set of vectors encrypted with different derived keys
+        #         # first we encrypt the dense vector
+        #         encryptedvector = asyncio.run(
+        #             sdk.vector().encrypt(plaintextvector, tenantid)
+        #         )
+        #         # print(encrypted)
+        #         # update those values in place
+        #         embedding = torch.tensor(encryptedvector.encrypted_vector)
 
         if self.training and self.noise_level > 0:
             embeddings += self.noise_level * torch.randn(
-                embeddings.shape, device=embeddings.device
+                embeddings.shape, device=device
             )
+        embeddings = embeddings.to(device)
         return embeddings
 
     def embed_and_project(
@@ -285,7 +288,7 @@ class InversionModel(transformers.PreTrainedModel):
         # print("** embed_and_project")
         assert not ((embedder_input_ids is None) and (frozen_embeddings is None))
         if frozen_embeddings is not None:
-            embeddings = frozen_embeddings
+            embeddings = frozen_embeddings.to(device)
             assert len(embeddings.shape) == 2  # batch by d
         elif self.embedder_no_grad:
             with torch.no_grad():
@@ -314,7 +317,7 @@ class InversionModel(transformers.PreTrainedModel):
                 f"unknown embedding transformation strategy {self.embedding_transform_strategy}"
             )
         attention_mask = torch.ones(
-            (embeddings.shape[0], embeddings.shape[1]), device=embeddings.device
+            (embeddings.shape[0], embeddings.shape[1]), device=device
         )
         return embeddings, attention_mask
 

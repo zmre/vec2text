@@ -24,12 +24,13 @@
       # });
       pkgs = import nixpkgs {
         inherit system;
+        config.allowUnfree = true; # for torch-bin
         # overlays = [
         #   (final: prev: {
-        #     python311Packages =
-        #       prev.python311Packages
+        #     python312Packages =
+        #       prev.python312Packages
         #       // {
-        #         ironcore-alloy = prev.python311Packages.buildPythonPackage rec {
+        #         ironcore-alloy = prev.python312Packages.buildPythonPackage rec {
         #           pname = "ironcore_alloy";
         #           version = "0.11.2";
         #           src = prev.fetchPypi {
@@ -47,7 +48,7 @@
         # ];
       };
 
-      beir = pkgs.python311Packages.buildPythonPackage rec {
+      beir = pkgs.python312Packages.buildPythonPackage rec {
         pname = "beir";
         version = "2.1.0";
         format = "wheel";
@@ -65,7 +66,7 @@
           pkgs.cacert
         ];
       };
-      bert-score = pkgs.python311Packages.buildPythonPackage rec {
+      bert-score = pkgs.python312Packages.buildPythonPackage rec {
         pname = "bert_score";
         version = "0.3.13";
         format = "wheel";
@@ -83,68 +84,109 @@
           pkgs.cacert
         ];
       };
-      ironcore-alloy = pkgs.python311Packages.buildPythonPackage rec {
-        pname = "ironcore_alloy";
-        version = "0.11.2";
-        format = "wheel";
-        src = pkgs.fetchPypi {
-          inherit pname version;
-          format = "wheel";
-          #sha256 = pkgs.lib.fakeSha256;
-          #sha256 = "sha256-D7GctK4LLxAXQytWEh/dV8RD7v3uOU2lX3+MTFriOys="; #mac
-          sha256 = "sha256-DQlD/x3WLQH1EsFf5pb6ai262vpleI0Y0MrYCKQfQuQ="; #linux
-          python = "py3";
-          #platform = "macosx_11_0_arm64";
-          platform = "manylinux_2_17_x86_64.manylinux2014_x86_64";
-          dist = "py3";
-        };
-        doCheck = false;
-        propagatedBuildInputs = [
-          pkgs.cacert
-        ];
-      };
+      ironcore-alloy =
+        if pkgs.stdenvNoCC.isDarwin
+        then
+          (
+            pkgs.python312Packages.buildPythonPackage rec {
+              pname = "ironcore_alloy";
+              version = "0.11.2";
+              format = "wheel";
+              src = pkgs.fetchPypi {
+                inherit pname version;
+                format = "wheel";
+                #sha256 = pkgs.lib.fakeSha256;
+                sha256 = "sha256-D7GctK4LLxAXQytWEh/dV8RD7v3uOU2lX3+MTFriOys="; #mac
+                python = "py3";
+                platform = "macosx_11_0_arm64";
+                dist = "py3";
+              };
+              doCheck = false;
+              propagatedBuildInputs = [
+                pkgs.cacert
+              ];
+            }
+          )
+        else
+          (
+            pkgs.python312Packages.buildPythonPackage rec {
+              pname = "ironcore_alloy";
+              version = "0.11.2";
+              format = "wheel";
+              src = pkgs.fetchPypi {
+                inherit pname version;
+                format = "wheel";
+                #sha256 = pkgs.lib.fakeSha256;
+                #sha256 = "sha256-D7GctK4LLxAXQytWEh/dV8RD7v3uOU2lX3+MTFriOys="; #mac
+                sha256 = "sha256-DQlD/x3WLQH1EsFf5pb6ai262vpleI0Y0MrYCKQfQuQ="; #linux
+                python = "py3";
+                #platform = "macosx_11_0_arm64";
+                platform = "manylinux_2_17_x86_64.manylinux2014_x86_64";
+                dist = "py3";
+              };
+              doCheck = false;
+              propagatedBuildInputs = [
+                pkgs.cacert
+              ];
+            }
+          );
 
-      pythonEnv = pkgs.python311.withPackages (ps:
+      pythonEnv = pkgs.python312.withPackages (ps:
         with ps; [
-          jupyter
-          ipython
-          ipykernel
-          sentence-transformers
-          numpy
-          pip
-          pandas
-          scipy
-          tokenizers
-          sympy
-          pyarrow
-          python-dotenv
-          ironcore-alloy
-          nltk
-          torch
-          openai
           accelerate
+          beir
+          bert-score
           datasets
           einops
           evaluate
+          ipykernel
+          ipython
+          ironcore-alloy
+          jupyter
+          nltk
+          numpy
+          openai
           optimum
+          pandas
+          pip
+          pyarrow
+          python-dotenv
+          pytorch
           rouge-score
           sacrebleu
+          scipy
+          sentence-transformers
+          setuptools
+          sympy
           tenacity
           tokenizers
+          torch
           transformers
-          bert-score
-          beir
           wandb
         ]);
     in rec {
       devShell = pkgs.mkShell {
         nativeBuildInputs = [];
-        buildInputs = with pkgs; [
-          pythonEnv
-          libffi
-          # jupyterlab
-          # ruff
-        ];
+        buildInputs = with pkgs;
+          [
+            pythonEnv
+            libffi
+            python312Packages.torch-bin
+            # jupyterlab
+            # ruff
+          ]
+          ++ (pkgs.lib.optionals pkgs.stdenvNoCC.isDarwin
+            (with pkgs.darwin.apple_sdk_12_3.frameworks; [
+              Accelerate
+              CoreGraphics
+              CoreVideo
+              Foundation
+              Metal
+              MetalKit
+              MetalPerformanceShaders
+              MetalPerformanceShadersGraph
+              pkgs.apple-sdk_13
+            ]));
         shellHook = ''
           export PIP_PREFIX=$(pwd)/_build/pip_packages #Dir where built packages are stored
           export PYTHONPATH="$PIP_PREFIX/${pythonEnv.sitePackages}:$PYTHONPATH"
@@ -152,6 +194,7 @@
           echo "include-system-site-packages = false" >> pyvenv.cfg
           export PATH="$PIP_PREFIX/bin:$PATH"
           export JUPYTER_CONFIG_DIR="$PIP_PREFIX/jupyter"
+          export PYTHONPATH="$PYTHONPATH:$(pwd)"
           unset SOURCE_DATE_EPOCH
         '';
       };

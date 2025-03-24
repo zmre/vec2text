@@ -12,8 +12,6 @@ SUPPORTED_MODELS = ["text-embedding-ada-002", "gtr-base"]
 
 def load_pretrained_corrector(
     embedder: str,
-    embedder_encrypt: bool = False,
-    embedder_encrypt_approx_factor: float = 1.5,
 ) -> vec2text.trainers.Corrector:
     """Gets the Corrector object for the given embedder.
 
@@ -27,21 +25,19 @@ def load_pretrained_corrector(
     if embedder == "text-embedding-ada-002":
         inversion_model = vec2text.models.InversionModel.from_pretrained(
             "jxm/vec2text__openai_ada002__msmarco__msl128__hypothesizer",
-            embedder_encrypt=embedder_encrypt,
-            embedder_encrypt_approx_factor=embedder_encrypt_approx_factor,
-        ).to(device)
+            device_map=device.type,
+        )
         model = vec2text.models.CorrectorEncoderModel.from_pretrained(
             "jxm/vec2text__openai_ada002__msmarco__msl128__corrector"
-        ).to(device)
+        )
     elif embedder == "gtr-base":
         inversion_model = vec2text.models.InversionModel.from_pretrained(
             "jxm/gtr__nq__32",
-            embedder_encrypt=embedder_encrypt,
-            embedder_encrypt_approx_factor=embedder_encrypt_approx_factor,
-        ).to(device)
+            device_map=device.type,
+        )
         model = vec2text.models.CorrectorEncoderModel.from_pretrained(
             "jxm/gtr__nq__32__correct"
-        ).to(device)
+        )
     else:
         raise NotImplementedError(f"embedder `{embedder}` not implemented")
 
@@ -91,7 +87,6 @@ def invert_embeddings(
     num_steps: int = None,
     sequence_beam_width: int = 0,
 ) -> List[str]:
-    embeddings = embeddings.to(device)
     corrector.inversion_trainer.model.eval()
     corrector.model.eval()
 

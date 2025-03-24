@@ -15,6 +15,7 @@ from vec2text.utils import dataset_map_multi_worker
 
 from .base import BaseTrainer
 from .inversion import InversionTrainer
+from vec2text.models.model_utils import device
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +84,7 @@ class Corrector(BaseTrainer):
 
         Override to compute ppl from eval loss.
         """
-        self.inversion_trainer.model.to(self.args.device)
+        self.inversion_trainer.model.to(device)
 
         metric_key_prefix = kwargs["metric_key_prefix"]
         output = super().evaluation_loop(dataloader=dataloader, *args, **kwargs)  # type: ignore
@@ -115,7 +116,7 @@ class Corrector(BaseTrainer):
             max_length=collator.max_length,
             pad_to_multiple_of=collator.pad_to_multiple_of,
             return_tensors=collator.return_tensors,
-        ).to(self.args.device)
+        ).to(device)
 
         (
             frozen_embeddings,
@@ -181,8 +182,8 @@ class Corrector(BaseTrainer):
                 def embedding_is_not_correct(ex):
                     return (
                         ~torch.isclose(
-                            ex["frozen_embeddings"].to(self.args.device),
-                            ex["hypothesis_embedding"].to(self.args.device),
+                            ex["frozen_embeddings"].to(device),
+                            ex["hypothesis_embedding"].to(device),
                         ).all(dim=1)
                     ).tolist()
 
@@ -223,8 +224,8 @@ class Corrector(BaseTrainer):
         # os.environ["TOKENIZERS_PARALLELISM"] = "False"
 
         self.model.eval()
-        self.model.to(self.args.device)
-        self.inversion_trainer.model.to(next(self.model.parameters()).device)
+        self.model.to(device)
+        self.inversion_trainer.model.to(device)
         self.precompute_hypotheses()
         self.model.train()
         self.inversion_trainer.model.cpu()
@@ -262,10 +263,10 @@ class Corrector(BaseTrainer):
 
         # Add beam dimension:
         #       (batch, ...) -> (batch, beam, ...)
-        inputs["frozen_embeddings"] = frozen_embeddings
+        inputs["frozen_embeddings"] = frozen_embeddings.to(device)
         inputs["hypothesis_input_ids"] = hypothesis_input_ids
         inputs["hypothesis_attention_mask"] = hypothesis_attention_mask
-        inputs["hypothesis_embedding"] = hypothesis_embedding
+        inputs["hypothesis_embedding"] = hypothesis_embedding.to(device)
         # print("generating with sequence_beam_width:", (sequence_beam_width or self.sequence_beam_width))
 
         num_recursive_steps = num_recursive_steps or self.num_gen_recursive_steps
@@ -439,7 +440,7 @@ class Corrector(BaseTrainer):
                     padding="max_length",
                 )["input_ids"]
                 .repeat((batch_size, 1))
-                .to(self.args.device)
+                .to(device)
             )
             # gen_text_ids = (
             #     torch.randint(
@@ -454,7 +455,7 @@ class Corrector(BaseTrainer):
             bos_token_id = self.model.encoder_decoder.config.decoder_start_token_id
             bos_token_ids = (
                 torch.ones(
-                    (batch_size, 1), dtype=torch.long, device=gen_text_ids.device
+                    (batch_size, 1), dtype=torch.long, device=device
                 )
                 * bos_token_id
             )
@@ -619,7 +620,7 @@ class Corrector(BaseTrainer):
                         if len(best_idx_in_beam[batch_idx]) == sequence_beam_width:
                             break
                 best_idx_in_beam = torch.tensor(
-                    best_idx_in_beam, device=best_idx_in_beam_total.device
+                    best_idx_in_beam, device=device
                 )
                 # now take top unique things
                 hypothesis_embedding = hypothesis_embedding.reshape(
@@ -656,7 +657,7 @@ class Corrector(BaseTrainer):
                 attention_mask=embedder_attention_mask,
             )
 
-        return frozen_embeddings.to(self.args.device)
+        return frozen_embeddings.to(device)
 
     def embed_generated_hypothesis(self, input_ids: torch.Tensor) -> torch.Tensor:
         """Embeds a generated hypothesis. Has to remove EOS token and add BOS token
@@ -669,7 +670,7 @@ class Corrector(BaseTrainer):
             truncation=True,
             padding="max_length",
             return_tensors="pt",
-        ).to(input_ids.device)
+        ).to(device)
         return self.get_frozen_embeddings(
             embedder_input_ids=emb_input_ids.input_ids,
             embedder_attention_mask=emb_input_ids.attention_mask,
@@ -759,7 +760,7 @@ class Corrector(BaseTrainer):
         """
         Perform an evaluation step on `model` using `inputs`. Called during self.evalaute()
         """
-        inputs = {key: value.to(self.args.device) for key, value in inputs.items()}
+        inputs = {key: value.to(device) for key, value in inputs.items()}
         with torch.no_grad():
             loss = self.compute_loss(model=model, inputs=inputs)
 
